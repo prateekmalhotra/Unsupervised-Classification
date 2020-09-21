@@ -8,9 +8,8 @@ model_kwargs:
    features_dim: 128
 
 # Dataset
-train_db_name: cifar-10
-val_db_name: cifar-10
-num_classes: 10
+train_db_name: drew-fish
+num_classes: 13
 
 # Loss
 criterion: simclr

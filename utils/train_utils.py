@@ -8,7 +8,7 @@ from utils.utils import AverageMeter, ProgressMeter
 
 
 def simclr_train(train_loader, model, criterion, optimizer, epoch):
-    """ 
+    """
     Train according to the scheme from SimCLR
     https://arxiv.org/abs/2002.05709
     """
@@ -24,9 +24,8 @@ def simclr_train(train_loader, model, criterion, optimizer, epoch):
         images_augmented = batch['image_augmented']
         b, c, h, w = images.size()
         input_ = torch.cat([images.unsqueeze(1), images_augmented.unsqueeze(1)], dim=1)
-        input_ = input_.view(-1, c, h, w) 
+        input_ = input_.view(-1, c, h, w)
         input_ = input_.cuda(non_blocking=True)
-        targets = batch['target'].cuda(non_blocking=True)
 
         output = model(input_).view(b, 2, -1)
         loss = criterion(output)
@@ -39,9 +38,8 @@ def simclr_train(train_loader, model, criterion, optimizer, epoch):
         if i % 25 == 0:
             progress.display(i)
 
-
 def scan_train(train_loader, model, criterion, optimizer, epoch, update_cluster_head_only=False):
-    """ 
+    """
     Train w/ SCAN-Loss
     """
     total_losses = AverageMeter('Total Loss', ':.4e')
@@ -60,7 +58,7 @@ def scan_train(train_loader, model, criterion, optimizer, epoch, update_cluster_
         # Forward pass
         anchors = batch['anchor'].cuda(non_blocking=True)
         neighbors = batch['neighbor'].cuda(non_blocking=True)
-       
+
         if update_cluster_head_only: # Only calculate gradient for backprop of linear layer
             with torch.no_grad():
                 anchors_features = model(anchors, forward_pass='backbone')
@@ -70,7 +68,7 @@ def scan_train(train_loader, model, criterion, optimizer, epoch, update_cluster_
 
         else: # Calculate gradient for backprop of complete network
             anchors_output = model(anchors)
-            neighbors_output = model(neighbors)     
+            neighbors_output = model(neighbors)
 
         # Loss for every head
         total_loss, consistency_loss, entropy_loss = [], [], []
@@ -97,7 +95,7 @@ def scan_train(train_loader, model, criterion, optimizer, epoch, update_cluster_
 
 
 def selflabel_train(train_loader, model, criterion, optimizer, epoch, ema=None):
-    """ 
+    """
     Self-labeling based on confident samples
     """
     losses = AverageMeter('Loss', ':.4e')
@@ -109,13 +107,13 @@ def selflabel_train(train_loader, model, criterion, optimizer, epoch, ema=None):
         images = batch['image'].cuda(non_blocking=True)
         images_augmented = batch['image_augmented'].cuda(non_blocking=True)
 
-        with torch.no_grad(): 
+        with torch.no_grad():
             output = model(images)[0]
         output_augmented = model(images_augmented)[0]
 
         loss = criterion(output, output_augmented)
         losses.update(loss.item())
-        
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -123,6 +121,6 @@ def selflabel_train(train_loader, model, criterion, optimizer, epoch, ema=None):
         if ema is not None: # Apply EMA to update the weights of the network
             ema.update_params(model)
             ema.apply_shadow(model)
-        
+
         if i % 25 == 0:
             progress.display(i)
